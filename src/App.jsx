@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import ActivityMode from './views/ActivityMode';
 import TimerMode from './views/TimerMode';
+import TopMenu from './views/TopMenu';
 import SettingsModal from './components/SettingsModal';
-import { Settings } from 'lucide-react';
+import { Settings, Home } from 'lucide-react';
 
 function App() {
+  const [currentScreen, setCurrentScreen] = useState('menu'); // 'menu' | 'app'
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settings, setSettings] = useState({
-    appMode: 'activity', // 'activity' | 'timer'
+    appMode: 'activity', // 'activity' | 'advance' | 'timer'
     
     // Activity Settings
     cueType: 'hiragana', // 'hiragana' | 'katakana' | 'kanji' | 'arrow' | 'color'
@@ -40,6 +42,35 @@ function App() {
     setIsSettingsOpen(false);
   };
 
+  const handleSelectMode = (mode) => {
+    setSettings(prev => ({ ...prev, appMode: mode }));
+    setCurrentScreen('app');
+  };
+
+  if (currentScreen === 'menu') {
+    return (
+      <>
+        <TopMenu onSelectMode={handleSelectMode} />
+        {/* Settings button on TopMenu if desired */}
+        <button 
+          className="settings-btn" 
+          onClick={() => setIsSettingsOpen(true)}
+          aria-label="Settings"
+          style={{ position: 'absolute', top: '2vh', right: '2vw', zIndex: 100 }}
+        >
+          <Settings size={40} color="#222" />
+        </button>
+        {isSettingsOpen && (
+          <SettingsModal 
+            currentSettings={settings} 
+            onSave={handleSaveSettings} 
+            onClose={() => setIsSettingsOpen(false)} 
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="app-container" style={{ backgroundColor: settings.bgMainColor }}>
       {settings.appMode === 'activity' || settings.appMode === 'advance' ? (
@@ -48,13 +79,23 @@ function App() {
         <TimerMode settings={settings} />
       )}
 
-      {/* Global Settings Button (only show if not running in some active state, or maybe always show) */}
+      {/* Global Settings Button */}
       <button 
         className="settings-btn" 
         onClick={() => setIsSettingsOpen(true)}
         aria-label="Settings"
       >
         <Settings size={40} />
+      </button>
+
+      {/* Home Button */}
+      <button 
+        className="settings-btn" 
+        style={{ right: 'calc(2vw + 60px)' }}
+        onClick={() => setCurrentScreen('menu')}
+        aria-label="Home"
+      >
+        <Home size={40} />
       </button>
 
       {isSettingsOpen && (

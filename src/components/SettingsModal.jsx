@@ -28,17 +28,7 @@ export default function SettingsModal({ currentSettings, onSave, onClose }) {
           <button className="close-btn" onClick={onClose}><X size={24} /></button>
         </div>
 
-        <div className="setting-group">
-          <label>アプリモード</label>
-          <select 
-            value={localSettings.appMode} 
-            onChange={e => handleChange('appMode', e.target.value)}
-          >
-            <option value="activity">左右移動活動モード</option>
-            <option value="advance">アドバンスモード（前後左右斜め・矢印）</option>
-            <option value="timer">全画面タイマーモード</option>
-          </select>
-        </div>
+
 
         <hr style={{ margin: '20px 0', border: '1px solid #eee' }} />
         <h3>共通設定</h3>
