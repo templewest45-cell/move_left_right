@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Play, Square, RotateCcw } from 'lucide-react';
+import PoseDetector from '../PoseDetector';
 
 export default function ActivityMode({ settings }) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -10,6 +11,7 @@ export default function ActivityMode({ settings }) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [lastDirection, setLastDirection] = useState(null); // Used for 'alternating'
   const [intervalCountdown, setIntervalCountdown] = useState(settings.intervalTime);
+  const [poseResult, setPoseResult] = useState({ detected: null, isOk: false });
   const countdownRef = useRef(settings.intervalTime);
   const advanceDeckRef = useRef([]);
   const audioCtxRef = useRef(null);
@@ -386,14 +388,74 @@ export default function ActivityMode({ settings }) {
         </div>
       </div>
 
-      <div className="center-area" style={{ flexDirection: 'column' }}>
-        {renderDirectionDisplay()}
-        {isPlaying && !isFinished && settings.sequence !== 'analog' && currentDirection && (
-          <div style={{ fontSize: '6vmin', fontWeight: 'bold', color: 'white', marginTop: '2vmin', textShadow: '2px 2px 0px rgba(0,0,0,0.3)', fontVariantNumeric: 'tabular-nums' }}>
-            つぎまで: {intervalCountdown}
+      {(() => {
+        // ポーズ検出がONでゲーム中なら左右分割レイアウト
+        const showSplit = settings.usePoseDetection && isPlaying && !isFinished && !!currentDirection;
+        return (
+          <div
+            className="center-area"
+            style={{
+              flexDirection: showSplit ? 'row' : 'column',
+              outline: settings.usePoseDetection && poseResult.isOk && isPlaying
+                ? '6px solid rgba(0,255,136,0.85)'
+                : 'none',
+              boxShadow: settings.usePoseDetection && poseResult.isOk && isPlaying
+                ? 'inset 0 0 60px rgba(0,255,136,0.25)'
+                : 'none',
+              transition: 'outline 0.15s, box-shadow 0.15s',
+              padding: showSplit ? '10px' : '0',
+              gap: showSplit ? '8px' : '0',
+            }}
+          >
+            {/* 方向表示エリア */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: showSplit ? '0 0 50%' : '1',
+                height: '100%',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  transform: showSplit ? 'scale(0.5)' : 'none',
+                  transformOrigin: 'center center',
+                }}
+              >
+                {renderDirectionDisplay()}
+              </div>
+              {isPlaying && !isFinished && settings.sequence !== 'analog' && currentDirection && (
+                <div style={{ fontSize: showSplit ? '3vmin' : '6vmin', fontWeight: 'bold', color: 'white', marginTop: showSplit ? '0' : '2vmin', textShadow: '2px 2px 0px rgba(0,0,0,0.3)', fontVariantNumeric: 'tabular-nums' }}>
+                  つぎまで: {intervalCountdown}
+                </div>
+              )}
+            </div>
+
+            {/* カメラパネル（ポーズ検出ON かつ分割表示時のみ） */}
+            {showSplit && (
+              <div
+                style={{
+                  flex: '0 0 50%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '8px',
+                }}
+              >
+                <PoseDetector
+                  targetDir={currentDirection}
+                  onResult={setPoseResult}
+                  inline
+                />
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       <div className="bottom-area" style={{ backgroundColor: settings.bgBottomColor }}>
         {settings.appMode === 'advance' ? (
@@ -528,6 +590,8 @@ export default function ActivityMode({ settings }) {
           style={{ display: 'none' }}
         />
       )}
+
+
     </>
   );
 }

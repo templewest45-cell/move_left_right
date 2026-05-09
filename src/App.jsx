@@ -31,6 +31,7 @@ function App() {
     advanceDirectionType: 'all', // 'all' | 'orthogonal' | 'diagonal'
     bgmUrl: null, // Custom BGM
     bgmName: '', // Custom BGM Name
+    usePoseDetection: false, // カメラ動き検出（MediaPipe Pose）
     
     // Timer Settings
     timerType: 'countdown', // 'countdown' | 'stopwatch'

@@ -138,6 +138,22 @@ export default function SettingsModal({ currentSettings, onSave, onClose }) {
           )}
         </div>
 
+        <div className="setting-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={localSettings.usePoseDetection || false}
+              onChange={e => handleChange('usePoseDetection', e.target.checked)}
+              style={{ width: '20px', height: '20px' }}
+            />
+            カメラ動き検出を使う（MediaPipe Pose）
+          </label>
+          <p style={{ margin: '6px 0 0 30px', fontSize: '0.8rem', color: '#888' }}>
+            ※ 正面カメラで全身を撮影し、体の移動方向（8方向）をリアルタイム検出します。<br />
+            活動モード・アドバンスモードのみ有効です。
+          </p>
+        </div>
+
         {(localSettings.appMode === 'activity' || localSettings.appMode === 'advance') && (
           <>
             <hr style={{ margin: '20px 0', border: '1px solid #eee' }} />
