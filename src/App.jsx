@@ -26,6 +26,7 @@ function App() {
     seVolume: 50, // 0 to 100
     bgmType: 'tengoku', // 'none' | 'tengoku' | 'custom'
     bgmVolume: 50, // 0 to 100
+    advanceDirectionType: 'all', // 'all' | 'orthogonal' | 'diagonal'
     bgmUrl: null, // Custom BGM
     bgmName: '', // Custom BGM Name
     
@@ -41,7 +42,7 @@ function App() {
 
   return (
     <div className="app-container" style={{ backgroundColor: settings.bgMainColor }}>
-      {settings.appMode === 'activity' ? (
+      {settings.appMode === 'activity' || settings.appMode === 'advance' ? (
         <ActivityMode settings={settings} />
       ) : (
         <TimerMode settings={settings} />

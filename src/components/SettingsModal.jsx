@@ -35,6 +35,7 @@ export default function SettingsModal({ currentSettings, onSave, onClose }) {
             onChange={e => handleChange('appMode', e.target.value)}
           >
             <option value="activity">左右移動活動モード</option>
+            <option value="advance">アドバンスモード（前後左右斜め・矢印）</option>
             <option value="timer">全画面タイマーモード</option>
           </select>
         </div>
@@ -147,26 +148,42 @@ export default function SettingsModal({ currentSettings, onSave, onClose }) {
           )}
         </div>
 
-        {localSettings.appMode === 'activity' && (
+        {(localSettings.appMode === 'activity' || localSettings.appMode === 'advance') && (
           <>
             <hr style={{ margin: '20px 0', border: '1px solid #eee' }} />
-            <h3>活動モード設定</h3>
+            <h3>{localSettings.appMode === 'activity' ? '活動モード設定' : 'アドバンスモード設定'}</h3>
             
-            <div className="setting-group" style={{ marginTop: '15px' }}>
-              <label>表示方法</label>
-              <select 
-                value={localSettings.cueType} 
-                onChange={e => handleChange('cueType', e.target.value)}
-              >
-                <option value="hiragana">ひらがな（ひだり / みぎ）</option>
-                <option value="katakana">カタカナ（ヒダリ / ミギ）</option>
-                <option value="kanji">漢字（左 / 右）</option>
-                <option value="arrow">矢印（← / →）</option>
-                <option value="color">色（カスタム色）</option>
-              </select>
-            </div>
+            {localSettings.appMode === 'activity' && (
+              <div className="setting-group" style={{ marginTop: '15px' }}>
+                <label>表示方法</label>
+                <select 
+                  value={localSettings.cueType} 
+                  onChange={e => handleChange('cueType', e.target.value)}
+                >
+                  <option value="hiragana">ひらがな（ひだり / みぎ）</option>
+                  <option value="katakana">カタカナ（ヒダリ / ミギ）</option>
+                  <option value="kanji">漢字（左 / 右）</option>
+                  <option value="arrow">矢印（← / →）</option>
+                  <option value="color">色（カスタム色）</option>
+                </select>
+              </div>
+            )}
 
-            {localSettings.cueType === 'color' && (
+            {localSettings.appMode === 'advance' && (
+              <div className="setting-group" style={{ marginTop: '15px' }}>
+                <label>使用する方向</label>
+                <select 
+                  value={localSettings.advanceDirectionType || 'all'} 
+                  onChange={e => handleChange('advanceDirectionType', e.target.value)}
+                >
+                  <option value="all">8方向すべて</option>
+                  <option value="orthogonal">前後左右のみ（4方向）</option>
+                  <option value="diagonal">斜めのみ（4方向）</option>
+                </select>
+              </div>
+            )}
+
+            {localSettings.appMode === 'activity' && localSettings.cueType === 'color' && (
               <div className="setting-group" style={{ display: 'flex', gap: '20px' }}>
                 <div style={{ flex: 1 }}>
                   <label>左の色</label>
@@ -196,8 +213,17 @@ export default function SettingsModal({ currentSettings, onSave, onClose }) {
                 onChange={e => handleChange('sequence', e.target.value)}
               >
                 <option value="random">ランダムに表示</option>
-                <option value="alternating">規則的に表示（左右交互）</option>
-                <option value="analog">アナログ操作（手動で左右を切り替え）</option>
+                {localSettings.appMode === 'advance' ? (
+                  <>
+                    <option value="alternating">規則的に表示（時計回り）</option>
+                    <option value="analog">アナログ操作（手動で方向を切り替え）</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="alternating">規則的に表示（左右交互）</option>
+                    <option value="analog">アナログ操作（手動で左右を切り替え）</option>
+                  </>
+                )}
               </select>
             </div>
 
@@ -212,51 +238,55 @@ export default function SettingsModal({ currentSettings, onSave, onClose }) {
               />
             </div>
 
-            <div className="setting-group">
-              <label>終了条件</label>
-              <select 
-                value={localSettings.endCondition} 
-                onChange={e => handleChange('endCondition', e.target.value)}
-              >
-                <option value="count">残り回数で終了</option>
-                <option value="time">残り時間で終了</option>
-              </select>
-            </div>
+            {localSettings.appMode === 'activity' && (
+              <>
+                <div className="setting-group">
+                  <label>終了条件</label>
+                  <select 
+                    value={localSettings.endCondition} 
+                    onChange={e => handleChange('endCondition', e.target.value)}
+                  >
+                    <option value="count">残り回数で終了</option>
+                    <option value="time">残り時間で終了</option>
+                  </select>
+                </div>
 
-            {localSettings.endCondition === 'count' ? (
-              <div className="setting-group">
-                <label>設定回数 (回)</label>
-                <input 
-                  type="number" 
-                  min="1" 
-                  max="100" 
-                  value={localSettings.totalCount} 
-                  onChange={e => handleChange('totalCount', e.target.value)}
-                />
-              </div>
-            ) : (
-              <div className="setting-group">
-                <label>設定時間 (秒)</label>
-                <input 
-                  type="number" 
-                  min="10" 
-                  max="600" 
-                  value={localSettings.totalTime} 
-                  onChange={e => handleChange('totalTime', e.target.value)}
-                />
-              </div>
+                {localSettings.endCondition === 'count' ? (
+                  <div className="setting-group">
+                    <label>設定回数 (回)</label>
+                    <input 
+                      type="number" 
+                      min="1" 
+                      max="100" 
+                      value={localSettings.totalCount} 
+                      onChange={e => handleChange('totalCount', e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="setting-group">
+                    <label>設定時間 (秒)</label>
+                    <input 
+                      type="number" 
+                      min="10" 
+                      max="600" 
+                      value={localSettings.totalTime} 
+                      onChange={e => handleChange('totalTime', e.target.value)}
+                    />
+                  </div>
+                )}
+
+                <div className="setting-group">
+                  <label>残り（回数・時間）の表示形式</label>
+                  <select 
+                    value={localSettings.progressDisplayType} 
+                    onChange={e => handleChange('progressDisplayType', e.target.value)}
+                  >
+                    <option value="text">テキストで表示（数字）</option>
+                    <option value="visual">ボックスで表示（視覚的）</option>
+                  </select>
+                </div>
+              </>
             )}
-
-            <div className="setting-group">
-              <label>残り（回数・時間）の表示形式</label>
-              <select 
-                value={localSettings.progressDisplayType} 
-                onChange={e => handleChange('progressDisplayType', e.target.value)}
-              >
-                <option value="text">テキストで表示（数字）</option>
-                <option value="visual">ボックスで表示（視覚的）</option>
-              </select>
-            </div>
           </>
         )}
 

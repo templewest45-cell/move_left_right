@@ -7,9 +7,11 @@ export default function ActivityMode({ settings }) {
   const [currentDirection, setCurrentDirection] = useState(null); // 'left' or 'right'
   const [remainingCount, setRemainingCount] = useState(settings.totalCount);
   const [remainingTime, setRemainingTime] = useState(settings.totalTime);
+  const [elapsedTime, setElapsedTime] = useState(0);
   const [lastDirection, setLastDirection] = useState(null); // Used for 'alternating'
   const [intervalCountdown, setIntervalCountdown] = useState(settings.intervalTime);
   const countdownRef = useRef(settings.intervalTime);
+  const advanceDeckRef = useRef([]);
   const audioCtxRef = useRef(null);
   const bgmAudioRef = useRef(null);
 
@@ -136,26 +138,63 @@ export default function ActivityMode({ settings }) {
     setCurrentDirection(null);
     setRemainingCount(settings.totalCount);
     setRemainingTime(settings.totalTime);
+    setElapsedTime(0);
     setLastDirection(null);
     setIntervalCountdown(settings.intervalTime);
     countdownRef.current = settings.intervalTime;
+    advanceDeckRef.current = [];
   }, [settings]);
 
+  const getAdvanceDirections = useCallback(() => {
+    const type = settings.advanceDirectionType || 'all';
+    if (type === 'orthogonal') return ['up', 'down', 'left', 'right'];
+    if (type === 'diagonal') return ['up-left', 'up-right', 'down-left', 'down-right'];
+    return ['up', 'down', 'left', 'right', 'up-left', 'up-right', 'down-left', 'down-right'];
+  }, [settings.advanceDirectionType]);
+
   const getNextDirection = useCallback(() => {
+    const isAdvance = settings.appMode === 'advance';
+
     if (settings.sequence === 'alternating') {
-      const nextDir = lastDirection === 'left' ? 'right' : 'left';
-      setLastDirection(nextDir);
-      return nextDir;
+      if (isAdvance) {
+        let order = ['up', 'up-right', 'right', 'down-right', 'down', 'down-left', 'left', 'up-left'];
+        if (settings.advanceDirectionType === 'diagonal') {
+          order = ['up-right', 'down-right', 'down-left', 'up-left'];
+        } else if (settings.advanceDirectionType === 'orthogonal') {
+          order = ['up', 'right', 'down', 'left'];
+        }
+        
+        if (!lastDirection || !order.includes(lastDirection)) {
+          setLastDirection(order[0]);
+          return order[0];
+        }
+        const nextIndex = (order.indexOf(lastDirection) + 1) % order.length;
+        const nextDir = order[nextIndex];
+        setLastDirection(nextDir);
+        return nextDir;
+      } else {
+        const nextDir = lastDirection === 'left' ? 'right' : 'left';
+        setLastDirection(nextDir);
+        return nextDir;
+      }
     } else {
       // random
-      return Math.random() > 0.5 ? 'left' : 'right';
+      if (isAdvance) {
+        if (advanceDeckRef.current.length === 0) {
+          const dirs = getAdvanceDirections();
+          advanceDeckRef.current = [...dirs].sort(() => Math.random() - 0.5);
+        }
+        return advanceDeckRef.current.pop();
+      } else {
+        return Math.random() > 0.5 ? 'left' : 'right';
+      }
     }
-  }, [settings.sequence, lastDirection]);
+  }, [settings.sequence, settings.appMode, lastDirection, getAdvanceDirections]);
 
   const handleManualDirection = (dir) => {
     setCurrentDirection(dir);
     playWhistle();
-    if (settings.endCondition === 'count') {
+    if (settings.appMode !== 'advance' && settings.endCondition === 'count') {
       setRemainingCount(prev => {
         if (prev <= 1) {
           setIsFinished(true);
@@ -176,7 +215,11 @@ export default function ActivityMode({ settings }) {
       // 1. Initial display if none
       if (!currentDirection) {
         if (settings.sequence === 'analog') {
-          setCurrentDirection('left');
+          if (settings.appMode === 'advance') {
+            setCurrentDirection(getAdvanceDirections()[0]);
+          } else {
+            setCurrentDirection('left');
+          }
           playWhistle();
         } else {
           setCurrentDirection(getNextDirection());
@@ -194,7 +237,7 @@ export default function ActivityMode({ settings }) {
             setCurrentDirection(getNextDirection());
             playWhistle();
             
-            if (settings.endCondition === 'count') {
+            if (settings.appMode !== 'advance' && settings.endCondition === 'count') {
               setRemainingCount(rc => {
                 if (rc <= 1) {
                   setIsFinished(true);
@@ -213,9 +256,11 @@ export default function ActivityMode({ settings }) {
         }, 1000);
       }
 
-      // 3. Setup Time Countdown if endCondition is time
-      if (settings.endCondition === 'time') {
-        timerId = setInterval(() => {
+      // 3. Setup Time Countdown & Elapsed Time
+      timerId = setInterval(() => {
+        if (settings.appMode === 'advance') {
+          setElapsedTime(prev => prev + 1);
+        } else if (settings.endCondition === 'time') {
           setRemainingTime(prev => {
             if (prev <= 1) {
               setIsFinished(true);
@@ -224,8 +269,8 @@ export default function ActivityMode({ settings }) {
             }
             return prev - 1;
           });
-        }, 1000);
-      }
+        }
+      }, 1000);
     }
 
     return () => {
@@ -264,6 +309,18 @@ export default function ActivityMode({ settings }) {
       arrow: { left: '←', right: '→' }
     };
 
+    if (settings.appMode === 'advance') {
+      const advanceMap = {
+        up: '↑', down: '↓', left: '←', right: '→',
+        'up-left': '↖', 'up-right': '↗', 'down-left': '↙', 'down-right': '↘'
+      };
+      return (
+        <div key={currentDirection + remainingCount + remainingTime} className="direction-display">
+          {advanceMap[currentDirection]}
+        </div>
+      );
+    }
+
     if (settings.cueType === 'color') {
       return (
         <div 
@@ -291,9 +348,14 @@ export default function ActivityMode({ settings }) {
           <button 
             className="btn"
             style={{ position: 'absolute', left: '2vw', display: 'flex', alignItems: 'center', gap: '10px' }}
-            onClick={() => setIsPlaying(false)}
+            onClick={() => {
+              setIsPlaying(false);
+              if (settings.appMode === 'advance') {
+                setIsFinished(true);
+              }
+            }}
           >
-            <Square fill="currentColor" size={24} /> 停止
+            <Square fill="currentColor" size={24} /> {settings.appMode === 'advance' ? 'おわり' : '停止'}
           </button>
         )}
         {(isFinished || (!isPlaying && currentDirection)) && (
@@ -308,14 +370,17 @@ export default function ActivityMode({ settings }) {
         <div style={{ textAlign: 'center', marginTop: '10px' }}>
           <div className="timer-text">
              {(() => {
-                const titleMap = {
-                  kanji: '左右に動こう',
-                  hiragana: 'さゆうにうごこう',
-                  arrow: '←→にうごこう',
-                  color: 'いろをよくみてうごこう',
-                  katakana: 'サユウニウゴコウ'
-                };
-                return titleMap[settings.cueType] || '左右移動';
+                 if (settings.appMode === 'advance') {
+                   return '矢印をよく見て動こう';
+                 }
+                 const titleMap = {
+                   kanji: '左右に動こう',
+                   hiragana: 'さゆうにうごこう',
+                   arrow: '←→にうごこう',
+                   color: 'いろをよくみてうごこう',
+                   katakana: 'サユウニウゴコウ'
+                 };
+                 return titleMap[settings.cueType] || '左右移動';
              })()}
           </div>
         </div>
@@ -331,7 +396,11 @@ export default function ActivityMode({ settings }) {
       </div>
 
       <div className="bottom-area" style={{ backgroundColor: settings.bgBottomColor }}>
-        {settings.progressDisplayType === 'visual' ? (
+        {settings.appMode === 'advance' ? (
+          <div className="remaining-text" style={{ fontSize: '10vmin', fontVariantNumeric: 'tabular-nums' }}>
+            かかった時間: {formatTime(elapsedTime)}
+          </div>
+        ) : settings.progressDisplayType === 'visual' ? (
           <div style={{ width: '100%', height: '100%', padding: '10px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             {settings.endCondition === 'count' ? (
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', width: '100%', height: '100%', alignItems: 'center' }}>
@@ -383,31 +452,70 @@ export default function ActivityMode({ settings }) {
           className="teacher-controller" 
           style={{
             position: 'absolute', 
-            bottom: '15vh', 
+            bottom: '2vh', 
             right: '2vw', 
-            display: 'flex', 
-            gap: '10px', 
             backgroundColor: 'rgba(0,0,0,0.6)', 
             padding: '10px', 
             borderRadius: '10px', 
-            zIndex: 100,
-            transform: 'translateY(-20px)'
+            zIndex: 100
           }}
         >
-          <button 
-            className="btn" 
-            style={{ fontSize: '1.2rem', padding: '10px 20px', backgroundColor: '#333', color: 'white', borderRadius: '8px' }}
-            onClick={() => handleManualDirection('left')}
-          >
-            左を表示
-          </button>
-          <button 
-            className="btn" 
-            style={{ fontSize: '1.2rem', padding: '10px 20px', backgroundColor: '#333', color: 'white', borderRadius: '8px' }}
-            onClick={() => handleManualDirection('right')}
-          >
-            右を表示
-          </button>
+          {settings.appMode === 'advance' ? (
+            (() => {
+              const activeDirs = getAdvanceDirections();
+              const renderBtn = (dir, label) => {
+                const isActive = activeDirs.includes(dir);
+                return (
+                  <button 
+                    className="btn" 
+                    style={{ 
+                      padding: '15px', 
+                      fontSize: '2rem', 
+                      backgroundColor: isActive ? '#333' : 'transparent', 
+                      color: isActive ? 'white' : 'transparent',
+                      pointerEvents: isActive ? 'auto' : 'none',
+                      border: isActive ? '' : 'none'
+                    }} 
+                    onClick={() => handleManualDirection(dir)}
+                  >
+                    {label}
+                  </button>
+                );
+              };
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
+                  {renderBtn('up-left', '↖')}
+                  {renderBtn('up', '↑')}
+                  {renderBtn('up-right', '↗')}
+                  
+                  {renderBtn('left', '←')}
+                  <div style={{ padding: '15px' }}></div>
+                  {renderBtn('right', '→')}
+                  
+                  {renderBtn('down-left', '↙')}
+                  {renderBtn('down', '↓')}
+                  {renderBtn('down-right', '↘')}
+                </div>
+              );
+            })()
+          ) : (
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className="btn" 
+                style={{ fontSize: '1.2rem', padding: '10px 20px', backgroundColor: '#333', color: 'white', borderRadius: '8px' }}
+                onClick={() => handleManualDirection('left')}
+              >
+                左を表示
+              </button>
+              <button 
+                className="btn" 
+                style={{ fontSize: '1.2rem', padding: '10px 20px', backgroundColor: '#333', color: 'white', borderRadius: '8px' }}
+                onClick={() => handleManualDirection('right')}
+              >
+                右を表示
+              </button>
+            </div>
+          )}
         </div>
       )}
 
