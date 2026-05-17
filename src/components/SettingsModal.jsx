@@ -64,6 +64,15 @@ export default function SettingsModal({ currentSettings, onSave, onClose }) {
               style={{ height: '40px', padding: '0', cursor: 'pointer' }}
             />
           </div>
+          <div style={{ flex: 1 }}>
+            <label>文字の色</label>
+            <input 
+              type="color" 
+              value={localSettings.textColor || '#222222'} 
+              onChange={e => handleChange('textColor', e.target.value)}
+              style={{ height: '40px', padding: '0', cursor: 'pointer' }}
+            />
+          </div>
         </div>
 
         <div className="setting-group">
@@ -159,21 +168,33 @@ export default function SettingsModal({ currentSettings, onSave, onClose }) {
             <hr style={{ margin: '20px 0', border: '1px solid #eee' }} />
             <h3>{localSettings.appMode === 'activity' ? '活動モード設定' : 'アドバンスモード設定'}</h3>
             
-            {localSettings.appMode === 'activity' && (
-              <div className="setting-group" style={{ marginTop: '15px' }}>
-                <label>表示方法</label>
-                <select 
-                  value={localSettings.cueType} 
-                  onChange={e => handleChange('cueType', e.target.value)}
-                >
-                  <option value="hiragana">ひらがな（ひだり / みぎ）</option>
-                  <option value="katakana">カタカナ（ヒダリ / ミギ）</option>
-                  <option value="kanji">漢字（左 / 右）</option>
-                  <option value="arrow">矢印（← / →）</option>
-                  <option value="color">色（カスタム色）</option>
-                </select>
-              </div>
-            )}
+            <div className="setting-group" style={{ marginTop: '15px' }}>
+              <label>表示方法</label>
+              <select 
+                value={localSettings.cueType} 
+                onChange={e => handleChange('cueType', e.target.value)}
+              >
+                {localSettings.appMode === 'activity' ? (
+                  <>
+                    <option value="hiragana">ひらがな（ひだり / みぎ）</option>
+                    <option value="katakana">カタカナ（ヒダリ / ミギ）</option>
+                    <option value="kanji">漢字（左 / 右）</option>
+                    <option value="arrow">矢印（← / →）</option>
+                    <option value="number">数字（1 / 2）</option>
+                    <option value="color">色（カスタム色）</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="arrow">
+                      {localSettings.advanceDirectionType === 'orthogonal' || localSettings.advanceDirectionType === 'diagonal' ? '矢印（4方向）' : '矢印（8方向）'}
+                    </option>
+                    <option value="number">
+                      {localSettings.advanceDirectionType === 'orthogonal' || localSettings.advanceDirectionType === 'diagonal' ? '数字（1〜4）' : '数字（1〜8）'}
+                    </option>
+                  </>
+                )}
+              </select>
+            </div>
 
             {localSettings.appMode === 'advance' && (
               <div className="setting-group" style={{ marginTop: '15px' }}>
@@ -244,11 +265,9 @@ export default function SettingsModal({ currentSettings, onSave, onClose }) {
               />
             </div>
 
-            {localSettings.appMode === 'activity' && (
-              <>
-                <div className="setting-group">
-                  <label>終了条件</label>
-                  <select 
+            <div className="setting-group">
+              <label>終了条件</label>
+              <select 
                     value={localSettings.endCondition} 
                     onChange={e => handleChange('endCondition', e.target.value)}
                   >
@@ -291,8 +310,6 @@ export default function SettingsModal({ currentSettings, onSave, onClose }) {
                     <option value="visual">ボックスで表示（視覚的）</option>
                   </select>
                 </div>
-              </>
-            )}
           </>
         )}
 

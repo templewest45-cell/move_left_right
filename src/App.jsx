@@ -24,6 +24,7 @@ function App() {
     bgMainColor: '#ff9800', // Orange
     bgBottomColor: '#4a90e2', // Blue
     boxColor: '#ffffff', // White
+    textColor: '#222222', // Text color
     playSE: true, // Play beep sound
     seVolume: 50, // 0 to 100
     bgmType: 'tengoku', // 'none' | 'tengoku' | 'custom'
@@ -75,7 +76,7 @@ function App() {
   return (
     <div className="app-container" style={{ backgroundColor: settings.bgMainColor }}>
       {settings.appMode === 'activity' || settings.appMode === 'advance' ? (
-        <ActivityMode settings={settings} />
+        <ActivityMode settings={settings} onReturnHome={() => setCurrentScreen('menu')} />
       ) : (
         <TimerMode settings={settings} />
       )}
@@ -92,7 +93,7 @@ function App() {
       {/* Home Button */}
       <button 
         className="settings-btn" 
-        style={{ right: 'calc(2vw + 60px)' }}
+        style={{ right: 'calc(2vw + 60px)', zIndex: 100 }}
         onClick={() => setCurrentScreen('menu')}
         aria-label="Home"
       >

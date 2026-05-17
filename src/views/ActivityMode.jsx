@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Play, Square, RotateCcw } from 'lucide-react';
+import { Play, Square, RotateCcw, Home } from 'lucide-react';
 import PoseDetector from '../PoseDetector';
 
-export default function ActivityMode({ settings }) {
+export default function ActivityMode({ settings, onReturnHome }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   const [currentDirection, setCurrentDirection] = useState(null); // 'left' or 'right'
@@ -188,15 +188,34 @@ export default function ActivityMode({ settings }) {
         }
         return advanceDeckRef.current.pop();
       } else {
-        return Math.random() > 0.5 ? 'left' : 'right';
+        if (advanceDeckRef.current.length === 0) {
+          const total = settings.endCondition === 'count' ? settings.totalCount : 10;
+          const half = Math.floor(total / 2);
+          let lefts = half;
+          let rights = half;
+          if (total % 2 !== 0) {
+            if (Math.random() > 0.5) lefts++;
+            else rights++;
+          }
+          const deck = [
+            ...Array(lefts).fill('left'),
+            ...Array(rights).fill('right')
+          ];
+          for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+          }
+          advanceDeckRef.current = deck;
+        }
+        return advanceDeckRef.current.pop();
       }
     }
-  }, [settings.sequence, settings.appMode, lastDirection, getAdvanceDirections]);
+  }, [settings.sequence, settings.appMode, settings.endCondition, settings.totalCount, lastDirection, getAdvanceDirections]);
 
   const handleManualDirection = (dir) => {
     setCurrentDirection(dir);
     playWhistle();
-    if (settings.appMode !== 'advance' && settings.endCondition === 'count') {
+    if (settings.endCondition === 'count') {
       setRemainingCount(prev => {
         if (prev <= 1) {
           setIsFinished(true);
@@ -239,7 +258,7 @@ export default function ActivityMode({ settings }) {
             setCurrentDirection(getNextDirection());
             playWhistle();
             
-            if (settings.appMode !== 'advance' && settings.endCondition === 'count') {
+            if (settings.endCondition === 'count') {
               setRemainingCount(rc => {
                 if (rc <= 1) {
                   setIsFinished(true);
@@ -260,9 +279,8 @@ export default function ActivityMode({ settings }) {
 
       // 3. Setup Time Countdown & Elapsed Time
       timerId = setInterval(() => {
-        if (settings.appMode === 'advance') {
-          setElapsedTime(prev => prev + 1);
-        } else if (settings.endCondition === 'time') {
+        setElapsedTime(prev => prev + 1);
+        if (settings.endCondition === 'time') {
           setRemainingTime(prev => {
             if (prev <= 1) {
               setIsFinished(true);
@@ -290,7 +308,29 @@ export default function ActivityMode({ settings }) {
   const renderDirectionDisplay = () => {
     if (!currentDirection || !isPlaying) {
       if (isFinished) {
-        return <div className="direction-display" style={{ fontSize: '15vmin' }}>おわり！</div>;
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+            <div className="direction-display" style={{ fontSize: '15vmin', color: settings.textColor || 'inherit' }}>おわり！</div>
+            <div style={{ display: 'flex', gap: '20px', marginTop: '20px' }}>
+              <button 
+                className="btn" 
+                style={{ fontSize: '2rem', padding: '15px 30px', backgroundColor: 'var(--secondary-color)', color: 'white', borderRadius: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}
+                onClick={resetActivity}
+              >
+                <RotateCcw size={30} /> もう一度
+              </button>
+              {onReturnHome && (
+                <button 
+                  className="btn" 
+                  style={{ fontSize: '2rem', padding: '15px 30px', backgroundColor: '#666', color: 'white', borderRadius: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}
+                  onClick={() => onReturnHome()}
+                >
+                  <Home size={30} /> トップに戻る
+                </button>
+              )}
+            </div>
+          </div>
+        );
       }
       return (
         <button 
@@ -308,17 +348,38 @@ export default function ActivityMode({ settings }) {
       hiragana: { left: 'ひだり', right: 'みぎ' },
       katakana: { left: 'ヒダリ', right: 'ミギ' },
       kanji: { left: '左', right: '右' },
-      arrow: { left: '←', right: '→' }
+      arrow: { left: '←', right: '→' },
+      number: { left: '1', right: '2' }
     };
+
+    const isLargeFont = settings.cueType === 'arrow' || settings.cueType === 'number';
 
     if (settings.appMode === 'advance') {
       const advanceMap = {
         up: '↑', down: '↓', left: '←', right: '→',
         'up-left': '↖', 'up-right': '↗', 'down-left': '↙', 'down-right': '↘'
       };
+      let numberAdvanceMap = {};
+      if (settings.advanceDirectionType === 'orthogonal') {
+        numberAdvanceMap = { up: '1', right: '2', down: '3', left: '4' };
+      } else if (settings.advanceDirectionType === 'diagonal') {
+        numberAdvanceMap = { 'up-right': '1', 'down-right': '2', 'down-left': '3', 'up-left': '4' };
+      } else {
+        numberAdvanceMap = {
+          up: '1', 'up-right': '2', right: '3', 'down-right': '4',
+          down: '5', 'down-left': '6', left: '7', 'up-left': '8'
+        };
+      }
+      
+      const displayContent = settings.cueType === 'number' ? numberAdvanceMap[currentDirection] : advanceMap[currentDirection];
+
       return (
-        <div key={currentDirection + remainingCount + remainingTime} className="direction-display">
-          {advanceMap[currentDirection]}
+        <div 
+          key={currentDirection + remainingCount + remainingTime} 
+          className={`direction-display ${isLargeFont ? 'large-arrow' : ''}`}
+          style={settings.textColor ? { color: settings.textColor } : {}}
+        >
+          {displayContent}
         </div>
       );
     }
@@ -336,7 +397,8 @@ export default function ActivityMode({ settings }) {
     return (
       <div 
         key={currentDirection + remainingCount + remainingTime} // Force re-animation
-        className="direction-display"
+        className={`direction-display ${isLargeFont ? 'large-arrow' : ''}`}
+        style={settings.textColor ? { color: settings.textColor } : {}}
       >
         {contentMap[settings.cueType][currentDirection]}
       </div>
@@ -458,11 +520,7 @@ export default function ActivityMode({ settings }) {
       })()}
 
       <div className="bottom-area" style={{ backgroundColor: settings.bgBottomColor }}>
-        {settings.appMode === 'advance' ? (
-          <div className="remaining-text" style={{ fontSize: '10vmin', fontVariantNumeric: 'tabular-nums' }}>
-            かかった時間: {formatTime(elapsedTime)}
-          </div>
-        ) : settings.progressDisplayType === 'visual' ? (
+        {settings.progressDisplayType === 'visual' ? (
           <div style={{ width: '100%', height: '100%', padding: '10px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             {settings.endCondition === 'count' ? (
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', width: '100%', height: '100%', alignItems: 'center' }}>
